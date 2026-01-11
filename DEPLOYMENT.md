@@ -383,35 +383,143 @@ The Railway CLI installation script may have issues. Instead:
 5. Run migrations: `railway run npx prisma migrate deploy`
 
 **Step 2.3: Seed Database (Optional - for testing)**
+
+⚠️ **Note:** Seeding is completely optional - it only creates demo data for testing. You can skip this and proceed with deployment. You can always create data manually through the CMS interface once deployed.
+
 1. This creates sample data (users, programs, lessons)
-2. Use Railway CLI:
+2. **Use Railway CLI (Recommended)**:
+   
+   **First, install Railway CLI** (if not already installed):
    ```bash
+   npm install -g @railway/cli
+   ```
+   
+   **Then, run these commands:**
+   ```bash
+   # 1. Login to Railway (opens browser for authentication)
+   railway login
+   
+   # 2. Link to your Railway project (select your project from the list)
+   railway link
+   
+   # 3. Run the seed script
+   # Option A: From repo root, specify the service name (check Railway dashboard for exact name)
+   railway run --service api node api/prisma/seed.js
+   
+   # Option B: If service name doesn't work, try without --service flag
+   # (Railway will prompt you to select the service)
+   cd api
    railway run node prisma/seed.js
    ```
-3. Or manually trigger in Railway:
-   - Go to API service → **"Deployments"** → **"Redeploy"**
-   - Then run seed script via CLI
-4. **Note**: Only seed once! Re-seeding will create duplicate data
+   
+   **⚠️ Important:** The service name must match exactly what you see in Railway dashboard (case-sensitive). Common names: `api`, `API`, `chaishots-api`, etc. Check your Railway dashboard to see the exact service name.
+
+3. **What you'll see:**
+   - The seed script will create sample users, programs, terms, and lessons
+   - You should see console logs like: `"Created users: ..."`, `"Created programs: ..."`, etc.
+   - Demo credentials will be available: `admin@example.com / admin123`, `editor@example.com / editor123`, `viewer@example.com / viewer123`
+
+4. **Note**: Only seed once! Re-seeding will create duplicate data. If you need to re-seed, you'll need to delete the database or clear the tables first.
+
+**Troubleshooting Railway CLI:**
+
+- **"Service not found" error:**
+  - Make sure you've run `railway link` first (this links your local directory to the Railway project)
+  - The service name must match exactly what's in Railway dashboard (check your Railway project → Services → see the service name)
+  - Try running without `--service` flag: `cd api && railway run node prisma/seed.js` (Railway will prompt you to select the service)
+  
+- If `railway login` fails, try downloading CLI manually from: https://github.com/railwayapp/cli/releases
+
+- If `railway link` doesn't show your project, make sure you're logged in and the project exists in Railway dashboard
+
+- **"@prisma/client did not initialize yet" error (even with `railway run`):**
+  - Railway CLI might not be executing remotely properly
+  - **Solution 1 (Recommended):** Skip seeding for now - it's optional! You can proceed to Step 3 (Deploy Web App). You can create data manually through the CMS interface once deployed.
+  - **Solution 2:** Railway's web interface cannot run custom scripts - it can only:
+    - View logs (Service → Deployments → View Logs)
+    - Redeploy services (Service → Deployments → Redeploy)
+    - Manage environment variables (Service → Variables)
+    - View database connection info (PostgreSQL service → Connect)
+  - If you really need demo data, you can create users/programs manually through the deployed CMS interface
+  
+- **Railway CLI not working / running locally instead of remotely:**
+  - If Railway CLI keeps running commands locally (you see local file paths in errors), Railway CLI might not be properly configured
+  - **Workaround:** Skip seeding - it's optional! Proceed with deployment and create data manually through the CMS
+  
+- If the seed script fails, check that:
+  - Migrations have been applied (see Step 2.2)
+  - `DATABASE_URL` is set in Railway (it should be auto-added from PostgreSQL service)
+  - You're running the command from the correct directory (repo root or `api` folder)
+  - You're using Railway CLI (not running locally) - Railway handles the environment setup
 
 ## Step 3: Deploy Web App to Vercel
 
-1. **Create Vercel account**: https://vercel.com
+### Step 3.1: Create Vercel Account
+1. Go to https://vercel.com
+2. Click **"Sign Up"** (or **"Log In"** if you have an account)
+3. Sign up with GitHub, GitLab, or Bitbucket (recommended - easier to import repos)
 
-2. **New Project** → **Import Git Repository**
+### Step 3.2: Import Your Repository
+1. After logging in, click **"+ New Project"** (or **"Add New..."** → **"Project"**)
+2. If prompted, authorize Vercel to access your Git provider (GitHub/GitLab/Bitbucket)
+3. Find and select your repository (the one with your CMS code)
+4. Click **"Import"**
 
-3. **Configure Project**:
-   - Framework Preset: **Vite**
-   - Root Directory: `web`
-   - Build Command: `npm run build`
-   - Output Directory: `dist`
-   - Install Command: `npm install`
+### Step 3.3: Configure Project Settings
 
-4. **Environment Variables**:
-   - `VITE_API_URL`: Your Railway API URL (e.g., `https://your-api.up.railway.app`)
+**After importing, you'll see the "Configure Project" page. Here's what to do:**
 
-5. **Deploy**: Click Deploy
+**Option A: If you see a "Framework Preset" dropdown:**
+1. **Framework Preset**: Select **"Vite"** from the dropdown
+   - If you don't see Vite, select **"Other"** or **"Create React App"** (Vite will auto-detect)
+2. **Root Directory**: Click **"Edit"** next to Root Directory, enter: `web`
+3. **Build Command**: Should auto-fill as `npm run build` (if not, enter it)
+4. **Output Directory**: Should auto-fill as `dist` (if not, enter it)
+5. **Install Command**: Should auto-fill as `npm install` (if not, enter it)
 
-6. **Get Web App URL**: Vercel provides a URL like `https://your-app.vercel.app`
+**Option B: If you DON'T see these options (Vercel auto-detected settings):**
+1. Look for a button/link that says **"Configure Project"**, **"Override"**, or **"Show Advanced"**
+2. Click it to reveal the settings above
+3. OR, if you don't see these options at all, that's okay - proceed to Step 3.4 (you can configure later)
+
+**Option C: If Vercel shows "Deploy" button immediately:**
+1. That's fine! Click **"Deploy"** first
+2. After deployment, go to **Project Settings** → **General** to update settings if needed
+
+### Step 3.4: Add Environment Variable
+
+**Before deploying (or after, if you deployed first):**
+
+1. On the "Configure Project" page, scroll down to find **"Environment Variables"** section
+   - OR if you already deployed, go to: **Project** → **Settings** → **Environment Variables**
+
+2. Click **"+ Add"** or **"Add New"**
+
+3. Add this variable:
+   - **Key/Name**: `VITE_API_URL`
+   - **Value**: Your Railway API URL
+     - Example: `https://chaishots-production-3d9d.up.railway.app`
+     - Get this from Railway dashboard → API service → Public URL
+   - **Environment**: Select **"Production"** (or all three: Production, Preview, Development)
+   - Click **"Save"**
+
+### Step 3.5: Deploy
+1. Click the **"Deploy"** button (usually at the bottom of the page)
+2. Wait for deployment (~1-3 minutes)
+3. You'll see build logs - wait for it to complete
+
+### Step 3.6: Get Your Web App URL
+1. After deployment completes, you'll see a **"Visit"** button
+2. Click it to see your deployed app
+3. Your URL will be something like: `https://your-project-name.vercel.app`
+4. **Copy this URL** - you'll need it for Step 4 (CORS configuration)
+
+**Note:** If you need to update settings after deployment:
+- Go to your project dashboard
+- Click **"Settings"** tab
+- Click **"General"** for build settings
+- Click **"Environment Variables"** for environment variables
+- Make changes, then click **"Redeploy"** in the **"Deployments"** tab
 
 ## Step 4: Update API CORS Settings
 
