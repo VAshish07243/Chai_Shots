@@ -11,8 +11,12 @@ const app = express();
 const prisma = new PrismaClient();
 const PORT = process.env.PORT || 3001;
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key';
+const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
-app.use(cors());
+app.use(cors({
+  origin: CORS_ORIGIN === '*' ? '*' : CORS_ORIGIN.split(','),
+  credentials: true,
+}));
 app.use(express.json());
 
 // basic logging for debugging

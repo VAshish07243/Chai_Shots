@@ -1,0 +1,32 @@
+# Railway deployment Dockerfile for API + Worker
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install dependencies for Prisma
+RUN apk add --no-cache openssl libc6-compat
+
+# Copy API files
+COPY api/package*.json ./api/
+COPY api/prisma ./api/prisma/
+COPY api/src ./api/src/
+
+# Copy Worker files
+COPY worker/package*.json ./worker/
+COPY worker/src ./worker/src/
+
+# Install API dependencies
+WORKDIR /app/api
+RUN npm install
+RUN npx prisma generate
+
+# Install Worker dependencies
+WORKDIR /app/worker
+RUN npm install
+# Copy prisma from api
+RUN cp -r ../api/prisma ./
+RUN npx prisma generate
+
+# Run migrations and start API
+WORKDIR /app/api
+CMD npx prisma migrate deploy && node src/server.js

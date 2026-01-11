@@ -266,7 +266,16 @@ VITE_API_URL=https://your-api-url.com
 
 ### Docker Compose Production
 
-The `docker-compose.yml` is configured for production. Update environment variables as needed.
+The `docker-compose.yml` works for local testing. Just update env vars before using in production.
+
+### Production Deployment
+
+See **[DEPLOYMENT.md](./DEPLOYMENT.md)** for complete deployment instructions.
+
+**Quick Summary:**
+- Web App → Deploy to **Vercel** (free tier)
+- API + Worker + DB → Deploy to **Railway** (free tier)
+- Total cost: **$0/month** (within free tiers)
 
 ### Manual Deployment
 

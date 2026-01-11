@@ -1,0 +1,8 @@
+api/
+worker/
+docker-compose.yml
+Dockerfile.railway
+railway.json
+*.md
+!README.md
+node_modules/

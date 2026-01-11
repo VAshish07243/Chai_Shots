@@ -1,0 +1,29 @@
+# Railway-specific docker-compose for deployment
+# This is used when deploying to Railway with Docker Compose
+version: '3.8'
+
+services:
+  api:
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      JWT_SECRET: ${JWT_SECRET}
+      NODE_ENV: production
+      PORT: 3001
+      CORS_ORIGIN: ${CORS_ORIGIN:-*}
+    command: sh -c "npx prisma migrate deploy && npm start"
+    ports:
+      - "3001:3001"
+
+  worker:
+    build:
+      context: .
+      dockerfile: ./worker/Dockerfile
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      NODE_ENV: production
+    command: node src/worker.js
+    depends_on:
+      - api
