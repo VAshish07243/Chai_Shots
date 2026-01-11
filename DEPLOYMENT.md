@@ -18,22 +18,145 @@ This guide walks you through deploying the CMS application to production.
 
 ### Option A: Using Railway Docker Compose (Recommended)
 
-1. **Create Railway account**: https://railway.app
-2. **New Project** → **Deploy from GitHub repo**
-3. Select your repository
-4. **Add Service** → **Docker Compose**
-5. Upload or paste your `docker-compose.yml` content
-6. **Set Environment Variables**:
-   - `JWT_SECRET`: Generate a strong secret (use `openssl rand -base64 32`)
-   - `DATABASE_URL`: Railway will auto-generate this for PostgreSQL
-   - `NODE_ENV`: `production`
+**Step 1.1: Create Railway Account**
+1. Go to https://railway.app
+2. Click **"Login"** or **"Start a New Project"**
+3. Sign up with GitHub (recommended) or email
+4. Verify your email if required
 
-7. Railway will:
-   - Create a PostgreSQL database automatically
-   - Deploy API, Worker, and Database services
-   - Provide public URLs
+**Step 1.2: Create New Project**
+1. After logging in, click **"New Project"** button (top right)
+2. Select **"Deploy from GitHub repo"**
+3. If this is your first time, authorize Railway to access your GitHub
+4. Select your repository from the list (the one containing this CMS project)
+5. Click **"Deploy Now"**
 
-8. **Copy the API URL**: Railway provides a public URL like `https://your-api.up.railway.app`
+**Step 1.3: Add Services to Railway**
+
+Railway doesn't have a direct "Docker Compose" option in the UI. Instead, we'll add services individually:
+
+**Option 1: Add API Service First**
+1. In your Railway project dashboard, click **"+ New"** button
+2. Select **"GitHub Repo"** (or **"Empty Service"** if you prefer)
+3. If using GitHub Repo:
+   - Select your repository
+   - Railway will auto-detect it's a Node.js project
+4. Click on the newly created service
+5. Go to **"Settings"** tab
+6. Set **"Root Directory"**: `/api`
+7. Railway will automatically detect the Dockerfile in `/api/Dockerfile`
+
+**Option 2: Use Railway's Dockerfile Detection**
+1. Railway will automatically use the `Dockerfile` in your `/api` directory
+2. If you want to use Docker Compose, you'll need to use Option B (Individual Services) instead
+3. For simplicity, we'll use individual services (see Option B below)
+
+**Step 1.4: Configure the Auto-Created Service as API**
+1. Click on the service that Railway auto-created (it might be named after your repo)
+2. Go to **"Settings"** tab
+3. Find **"Root Directory"** field and set it to: `/api`
+4. Railway will automatically detect the Dockerfile in `/api/Dockerfile` and use it
+5. Go to **"Variables"** tab
+6. You should already see `DATABASE_URL` (automatically added from PostgreSQL service)
+7. Click **"+ New Variable"** and add these one by one:
+
+   **Variable 1: JWT_SECRET**
+   - Name: `JWT_SECRET`
+   - Value: Generate a strong secret using one of these methods:
+     - **Windows PowerShell**: `[Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Minimum 0 -Maximum 256 }))`
+     - **Online**: Use https://randomkeygen.com (use "CodeIgniter Encryption Keys")
+     - **Manual**: Any long random string (at least 32 characters)
+   - Example: `aB3xK9mP2qR7vN5tY8wE1uI6oA4sD0fG2hJ9kL3zX5cV8bN1mM4qW7eR0tY3uI6oP9aS2dF5gH8jK1lZ4xC7vB0nM3qW6eR9tY2uI5oP8aS1dF4gH7jK0lZ3x`
+   - Click **"Add"** to save
+
+   **Variable 2: NODE_ENV**
+   - Name: `NODE_ENV`
+   - Value: `production`
+   - Click **"Add"** to save
+
+   **Variable 3: PORT**
+   - Name: `PORT`
+   - Value: `3001`
+   - Click **"Add"** to save
+
+   **Variable 4: CORS_ORIGIN** (set this after deploying web app - skip for now)
+   - Name: `CORS_ORIGIN`
+   - Value: `https://your-web-app.vercel.app` (you'll update this in Step 4)
+   - You can add this later, skip it for now
+
+8. Railway will automatically redeploy the API service after you save variables
+
+**Step 1.5: Add PostgreSQL Database**
+
+**What you're doing**: Adding a separate database service to store all your data (programs, lessons, users, etc.)
+
+**Why separate**: Railway treats the database as its own managed service, which means Railway handles backups, updates, and maintenance automatically.
+
+**Step-by-step**:
+1. In your Railway project dashboard, look for the **"+ New"** button (usually in the top right corner of the project view)
+2. Click **"+ New"** and you'll see a dropdown menu
+3. In the dropdown, hover over or click **"Database"** 
+4. Then select **"Add PostgreSQL"** from the submenu
+5. Railway will now:
+   - **Create a PostgreSQL database** on their servers (this is where all your data will be stored)
+   - **Generate a connection string** called `DATABASE_URL` (this is like an address that tells your API and Worker how to connect to the database)
+   - **Automatically share this `DATABASE_URL`** with all other services in your project (so your API and Worker can access it)
+
+6. **Wait ~30 seconds** - You'll see a loading indicator while Railway sets up the database
+7. Once it's done, you'll see a new service card in your dashboard labeled "PostgreSQL" or "Postgres"
+8. **Important**: The `DATABASE_URL` is automatically added to your API and Worker services' environment variables - you don't need to copy/paste it manually!
+
+**What this means**: Your API and Worker services can now connect to the database using the `DATABASE_URL` that Railway automatically provided. You'll see it in their "Variables" tab.
+
+**Step 1.6: Add Worker Service**
+1. In Railway project dashboard, click **"+ New"** button again (top right)
+2. Select **"GitHub Repo"** from the dropdown (same repository you used before)
+3. Railway will create a new service
+4. Click on the newly created service
+5. Go to **"Settings"** tab
+6. **Important**: Railway builds from the repository root by default
+   - **DO NOT set Root Directory** to `/worker` - leave it empty or as `/` (root)
+   - Railway will use the repo root as build context, which allows the Dockerfile to access both `api/prisma` and `worker/src`
+7. Railway should auto-detect `worker/Dockerfile`, but if not:
+   - Look for **"Dockerfile Path"** field and set it to: `worker/Dockerfile`
+   - Or Railway might show it in the build settings
+8. Go to **"Variables"** tab
+9. **Check for DATABASE_URL**:
+   - **If you see `DATABASE_URL`** already listed: Great! Railway automatically added it. Skip to step 9.
+   - **If you DON'T see `DATABASE_URL`**: You need to add it manually (see steps below)
+
+   **To manually add DATABASE_URL** (if it's missing):
+   - Go to your **PostgreSQL service** in Railway dashboard
+   - Click on the PostgreSQL service
+   - Go to **"Variables"** tab
+   - Find `DATABASE_URL` and **copy the entire value** (it's a long string starting with `postgresql://`)
+   - Go back to your **Worker service** → **"Variables"** tab
+   - Click **"+ New Variable"**
+   - **Name**: `DATABASE_URL`
+   - **Value**: Paste the value you copied from PostgreSQL
+   - Click **"Add"** to save
+
+9. Click **"+ New Variable"** and add:
+   - **Name**: `NODE_ENV`
+   - **Value**: `production`
+   - Click **"Add"** to save
+10. Railway will automatically deploy the worker service
+
+**Step 1.7: Get Your API URL**
+1. Wait for the API service to finish deploying (check the **"Deployments"** tab)
+2. Go to your **API service** in the dashboard
+3. Go to **"Settings"** tab
+4. Scroll down to **"Networking"** section
+5. Under **"Public Domain"**, click **"Generate Domain"** button
+6. Railway will create a public URL (looks like: `https://your-api-name.up.railway.app`)
+7. **Copy this URL** - you'll need it for the web app deployment
+8. The URL will be something like: `https://api-production-xxxx.up.railway.app`
+
+**Step 1.8: Verify Deployment**
+1. Open a new browser tab
+2. Visit: `https://your-api-url.up.railway.app/health`
+3. You should see: `{"status":"ok","database":"connected"}`
+4. If you see this, your API is deployed successfully!
 
 ### Option B: Using Railway Individual Services
 
@@ -65,18 +188,55 @@ This guide walks you through deploying the CMS application to production.
 
 ## Step 2: Run Database Migrations
 
-After Railway deploys:
+**Important**: If you used Option A (Docker Compose), migrations run automatically. Skip to Step 2.2.
 
-1. Go to your API service in Railway
-2. Click **Deployments** → **Latest Deployment** → **View Logs**
-3. Or use Railway CLI:
+**Step 2.1: Check if Migrations Ran (Docker Compose)**
+1. Go to your Railway project dashboard
+2. Click on the **API service**
+3. Go to **"Deployments"** tab
+4. Click on the **latest deployment**
+5. Click **"View Logs"**
+6. Look for: `"Prisma Migrate applied X migration(s)"` or `"No migration found"`
+7. If you see this, migrations already ran! ✅ Skip to Step 2.3
+
+**Step 2.2: Run Migrations Manually (Individual Services Only)**
+1. Go to your **API service** in Railway
+2. Go to **"Deployments"** tab
+3. Click **"View Logs"** on the latest deployment
+4. If you see database connection errors, migrations need to run
+5. Install Railway CLI (optional but easier):
+   ```bash
+   # Windows (PowerShell)
+   iwr https://railway.app/install.sh | iex
+   
+   # Or download from: https://railway.app/cli
+   ```
+6. Login to Railway:
+   ```bash
+   railway login
+   ```
+7. Link to your project:
+   ```bash
+   railway link
+   ```
+8. Run migrations:
    ```bash
    railway run npx prisma migrate deploy
    ```
-4. Seed the database (optional):
+9. Or use Railway web interface:
+   - Go to API service → **"Deployments"** → **"Redeploy"**
+   - Migrations run automatically during deployment
+
+**Step 2.3: Seed Database (Optional - for testing)**
+1. This creates sample data (users, programs, lessons)
+2. Use Railway CLI:
    ```bash
    railway run node prisma/seed.js
    ```
+3. Or manually trigger in Railway:
+   - Go to API service → **"Deployments"** → **"Redeploy"**
+   - Then run seed script via CLI
+4. **Note**: Only seed once! Re-seeding will create duplicate data
 
 ## Step 3: Deploy Web App to Vercel
 
@@ -100,12 +260,26 @@ After Railway deploys:
 
 ## Step 4: Update API CORS Settings
 
-After deploying the web app, update API CORS to allow your Vercel domain:
+**Why**: Your API needs to allow requests from your Vercel web app domain.
 
-1. In Railway API service, add environment variable:
-   - `CORS_ORIGIN`: `https://your-app.vercel.app`
+**Step 4.1: Add CORS Environment Variable**
+1. Go back to Railway dashboard
+2. Click on your **API service**
+3. Go to **"Variables"** tab
+4. Click **"+ New Variable"**
+5. Add:
+   - **Name**: `CORS_ORIGIN`
+   - **Value**: Your Vercel web app URL from Step 3.6
+     - Example: `https://your-project-name.vercel.app`
+   - **Important**: Include `https://` but no trailing slash
+6. Click **"Add"** to save
 
-2. Redeploy the API service
+**Step 4.2: Redeploy API Service**
+1. Still in the API service, go to **"Deployments"** tab
+2. Click **"Redeploy"** button (or the three dots menu → **"Redeploy"**)
+3. Wait for redeployment to complete (~1-2 minutes)
+4. Check logs to ensure it started successfully
+5. Your API will now accept requests from your Vercel domain
 
 ## Step 5: Update Web App API URL
 
