@@ -164,10 +164,121 @@ Railway doesn't have a direct "Docker Compose" option in the UI. Instead, we'll 
 8. The URL will be something like: `https://api-production-xxxx.up.railway.app`
 
 **Step 1.8: Verify Deployment**
-1. Open a new browser tab
-2. Visit: `https://your-api-url.up.railway.app/health`
+
+**First, check if the service is actually running:**
+1. Go to your **API service** in Railway dashboard (not PostgreSQL - the API service)
+2. Click on the **"Deployments"** tab
+3. Check the **latest deployment** - it should show "Active" or "Success"
+4. Click **"View Logs"** to see what's happening
+5. Look for these messages:
+
+   **✅ Good signs (service is working):**
+   - `"API server running on port 3001"` - Service started successfully!
+   - `"Prisma Migrate applied X migration(s)"` or `"No migration found"` - Migrations ran
+   - No error messages about database connection
+
+   **❌ Bad signs (service has issues):**
+   - `"PrismaClientInitializationError"` - Can't connect to database
+   - `"Error: P1001: Can't reach database server"` - DATABASE_URL is wrong
+   - `"EADDRINUSE: address already in use"` - PORT conflict
+   - Service keeps restarting/crashing
+   - No `"API server running"` message
+
+**If deployment shows as successful but you get "Not Found":**
+
+**Check 1: Is the domain generated?**
+1. Go to API service → **"Settings"** tab
+2. Scroll to **"Networking"** section
+3. Under **"Public Domain"**, make sure there's a domain listed
+4. If it says "No domain" or is empty, click **"Generate Domain"** button
+5. Wait a few seconds for Railway to provision the domain
+6. Copy the domain URL (it looks like: `https://your-service-name.up.railway.app`)
+
+**Check 2: Is the service actually listening?**
+1. Check the deployment logs for: `"API server running on port 3001"`
+2. If you don't see this, the service might have crashed
+3. Check for error messages in the logs
+
+**Check 3: Try the health endpoint:**
+1. Use the domain from Check 1
+2. Visit: `https://your-api-domain.up.railway.app/health`
 3. You should see: `{"status":"ok","database":"connected"}`
-4. If you see this, your API is deployed successfully!
+4. If you still see "Not Found", the service might not be running
+
+**Check 4: Verify environment variables (CRITICAL - This is likely your issue!):**
+1. Go to **API service** → **"Variables"** tab (NOT PostgreSQL service)
+2. **Check if DATABASE_URL exists:**
+   - If you see `DATABASE_URL` listed: Check its value matches PostgreSQL
+   - If you DON'T see `DATABASE_URL`: You need to add it (see steps below)
+
+3. **To add DATABASE_URL to API service:**
+   - Go to **PostgreSQL service** → **"Variables"** tab
+   - Find `DATABASE_URL` and **copy the entire value**
+   - It should be: `postgresql://postgres:JlXEcqrdRQWgJRVdjTkTHcMiDWfyTtsK@postgres.railway.internal:5432/railway`
+   - Go back to **API service** → **"Variables"** tab
+   - Click **"+ New Variable"**
+   - **Name**: `DATABASE_URL`
+   - **Value**: Paste the exact value from PostgreSQL (no quotes, no spaces)
+   - Click **"Add"** to save
+   - Railway will automatically redeploy the API service
+
+4. **Verify all required variables are set:**
+   - `DATABASE_URL` = (from PostgreSQL service)
+   - `PORT` = `3001`
+   - `NODE_ENV` = `production`
+   - `JWT_SECRET` = (your generated secret)
+
+**Check 5: Check if migrations ran:**
+1. Look at the deployment logs
+2. You should see: `"Prisma Migrate applied X migration(s)"` or `"No migration found"`
+3. If you see migration errors, the database might not be connected
+
+**Check 6: Database Connection Issues (if you see "invalid length of startup packet" in PostgreSQL logs):**
+
+This error means something is trying to connect to PostgreSQL with a malformed connection string.
+
+**Your DATABASE_URL should look like this:**
+```
+postgresql://postgres:JlXEcqrdRQWgJRVdjTkTHcMiDWfyTtsK@postgres.railway.internal:5432/railway
+```
+
+**Important points:**
+- ✅ Uses `postgresql://` (correct protocol)
+- ✅ Uses `postgres.railway.internal` (Railway's internal hostname - this is correct for services in the same project)
+- ✅ Format: `postgresql://username:password@host:port/database`
+
+**To fix the connection issue:**
+
+1. **In API service → Variables tab:**
+   - Find `DATABASE_URL`
+   - Make sure the value is EXACTLY: `postgresql://postgres:JlXEcqrdRQWgJRVdjTkTHcMiDWfyTtsK@postgres.railway.internal:5432/railway`
+   - **No quotes** around it
+   - **No spaces** before or after
+   - **No line breaks**
+   - If it's different, delete it and add it again with the exact value
+
+2. **In Worker service → Variables tab:**
+   - Do the same - use the exact same DATABASE_URL value
+
+3. **After updating DATABASE_URL:**
+   - Railway will automatically redeploy the services
+   - Check the deployment logs
+   - You should see: `"API server running on port 3001"` (no connection errors)
+
+4. **If you still see "invalid length of startup packet":**
+   - The DATABASE_URL might have hidden characters
+   - Delete the variable completely
+   - Add it again by typing it manually (don't copy-paste if copy-paste added extra characters)
+   - Or copy from PostgreSQL service → Variables tab again
+
+**If still getting "Not Found" after all checks:**
+- The service might have crashed during startup
+- Check the logs for the exact error message
+- Common issues: 
+  - Missing or incorrect DATABASE_URL format
+  - Wrong PORT environment variable
+  - Prisma connection errors
+  - Service crashed before it could start listening
 
 ### Option B: Using Railway Individual Services
 
@@ -201,6 +312,34 @@ Railway doesn't have a direct "Docker Compose" option in the UI. Instead, we'll 
 
 **Important**: If you used Option A (Docker Compose), migrations run automatically. Skip to Step 2.2.
 
+**⚠️ Step 2.0: Create Initial Migration (If Not Already Created)**
+
+**Check if migrations exist:**
+1. Look in your repo at `api/prisma/migrations/`
+2. If the folder is **empty**, you need to create migrations first
+
+**Create initial migration locally:**
+1. Make sure Docker is running and your local database is up:
+   ```bash
+   docker compose up db -d
+   ```
+
+2. Run the migration command:
+   ```bash
+   docker compose exec api npx prisma migrate dev --name init
+   ```
+
+3. **Commit and push** the new migration files to your GitHub repo:
+   ```bash
+   git add api/prisma/migrations/
+   git commit -m "Add initial database migration"
+   git push
+   ```
+
+4. **Redeploy** your API service in Railway so it picks up the new migration files
+
+**If migrations already exist** (you see `.sql` files in `api/prisma/migrations/`), skip to Step 2.1.
+
 **Step 2.1: Check if Migrations Ran (Docker Compose)**
 1. Go to your Railway project dashboard
 2. Click on the **API service**
@@ -211,32 +350,37 @@ Railway doesn't have a direct "Docker Compose" option in the UI. Instead, we'll 
 7. If you see this, migrations already ran! ✅ Skip to Step 2.3
 
 **Step 2.2: Run Migrations Manually (Individual Services Only)**
+
+**Method 1: Migrations Run Automatically (Recommended)**
+If your API service uses the Dockerfile with `prisma migrate deploy`, migrations run automatically when the service starts. Check the API service logs - you should see migration messages.
+
+**Method 2: Check if Migrations Ran**
 1. Go to your **API service** in Railway
 2. Go to **"Deployments"** tab
 3. Click **"View Logs"** on the latest deployment
-4. If you see database connection errors, migrations need to run
-5. Install Railway CLI (optional but easier):
+4. Look for:
+   - `"Prisma Migrate applied X migration(s)"` - Migrations ran! ✅
+   - `"No migration found"` - No migrations to run (schema is already up to date) ✅
+   - Database connection errors - DATABASE_URL is missing or wrong ❌
+
+**⚠️ Important:** If you only see `"Starting Container"` and `"GET /health"` in your logs, this means migrations haven't run yet. You need to **redeploy** the API service so it uses the updated Dockerfile that runs migrations automatically. See Method 3 below.
+
+**Method 3: Force Migrations to Run (if needed)**
+1. Go to API service → **"Deployments"** tab
+2. Click **"Redeploy"** button
+3. Migrations will run automatically during deployment
+4. Check logs to verify migrations ran
+
+**Method 4: Use Railway CLI (Optional - if web interface doesn't work)**
+The Railway CLI installation script may have issues. Instead:
+1. Download Railway CLI manually: https://github.com/railwayapp/cli/releases
+2. Or use npm to install globally:
    ```bash
-   # Windows (PowerShell)
-   iwr https://railway.app/install.sh | iex
-   
-   # Or download from: https://railway.app/cli
+   npm install -g @railway/cli
    ```
-6. Login to Railway:
-   ```bash
-   railway login
-   ```
-7. Link to your project:
-   ```bash
-   railway link
-   ```
-8. Run migrations:
-   ```bash
-   railway run npx prisma migrate deploy
-   ```
-9. Or use Railway web interface:
-   - Go to API service → **"Deployments"** → **"Redeploy"**
-   - Migrations run automatically during deployment
+3. Login: `railway login`
+4. Link project: `railway link`
+5. Run migrations: `railway run npx prisma migrate deploy`
 
 **Step 2.3: Seed Database (Optional - for testing)**
 1. This creates sample data (users, programs, lessons)

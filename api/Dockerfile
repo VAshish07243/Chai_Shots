@@ -15,4 +15,5 @@ COPY . .
 
 EXPOSE 3001
 
-CMD ["npm", "start"]
+# Run migrations and then start the server
+CMD ["sh", "-c", "npx prisma migrate deploy && npm start"]
