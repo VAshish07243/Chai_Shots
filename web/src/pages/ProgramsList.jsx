@@ -6,7 +6,7 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
 const LANGUAGES = ['Telugu', 'Hindi', 'English', 'Tamil', 'Kannada', 'Malayalam', 'Bengali', 'Marathi', 'Gujarati', 'Punjabi'];
 
-function ProgramsList({ user }) {
+function ProgramsList({ user, setUser }) {
   const [programs, setPrograms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', language: '', topic: '' });
@@ -64,8 +64,8 @@ function ProgramsList({ user }) {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
+    setUser(null);
     navigate('/login');
-    window.location.reload();
   };
 
   if (loading) return <div className="container">Loading...</div>;

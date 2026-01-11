@@ -44,7 +44,7 @@ function App() {
         <Route path="/login" element={<Login setUser={setUser} />} />
         <Route
           path="/programs"
-          element={user ? <ProgramsList user={user} /> : <Navigate to="/login" />}
+          element={user ? <ProgramsList user={user} setUser={setUser} /> : <Navigate to="/login" />}
         />
         <Route
           path="/programs/:id"
