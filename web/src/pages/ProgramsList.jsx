@@ -14,8 +14,20 @@ function ProgramsList({ user, setUser }) {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchTopics();
-    fetchPrograms();
+    let isMounted = true;
+    
+    const fetchData = async () => {
+      if (!isMounted) return;
+      await fetchTopics();
+      if (!isMounted) return;
+      await fetchPrograms();
+    };
+    
+    fetchData();
+    
+    return () => {
+      isMounted = false;
+    };
   }, [filters]);
 
   const fetchTopics = async () => {
