@@ -299,13 +299,28 @@ async function main() {
   console.log('Programs created: 2');
   console.log('Terms created: 2');
   console.log('Lessons created: 6 (1 scheduled for demo)');
+  
+  return {
+    users: { admin: adminUser.email, editor: editorUser.email, viewer: viewerUser.email },
+    programs: 2,
+    terms: 2,
+    lessons: 6,
+  };
 }
 
-main()
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  })
-  .finally(async () => {
-    await prisma.$disconnect();
-  });
+// export main function for use in API endpoint
+export { main };
+
+// run seed script if executed directly (not imported)
+// check if this file is being run directly (not imported)
+const isMainModule = process.argv[1] && import.meta.url.endsWith(process.argv[1].replace(/\\/g, '/'));
+if (isMainModule) {
+  main()
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    })
+    .finally(async () => {
+      await prisma.$disconnect();
+    });
+}

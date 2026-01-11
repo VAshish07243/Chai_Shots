@@ -89,6 +89,24 @@ app.post('/api/setup', async (req, res) => {
   }
 });
 
+// seed endpoint - runs the seed script to create demo data
+app.post('/api/seed', async (req, res) => {
+  try {
+    // import and run the seed script's main function
+    const { main: seedMain } = await import('../prisma/seed.js');
+    const result = await seedMain();
+    
+    res.json({ 
+      success: true, 
+      message: 'Database seeded successfully',
+      result
+    });
+  } catch (error) {
+    console.error('Seed error:', error);
+    res.status(500).json({ code: 'INTERNAL_ERROR', message: error.message });
+  }
+});
+
 // check if user is authenticated
 const authenticate = (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
