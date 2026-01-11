@@ -114,12 +114,23 @@ Railway doesn't have a direct "Docker Compose" option in the UI. Instead, we'll 
 3. Railway will create a new service
 4. Click on the newly created service
 5. Go to **"Settings"** tab
-6. **Important**: Railway builds from the repository root by default
-   - **DO NOT set Root Directory** to `/worker` - leave it empty or as `/` (root)
-   - Railway will use the repo root as build context, which allows the Dockerfile to access both `api/prisma` and `worker/src`
-7. Railway should auto-detect `worker/Dockerfile`, but if not:
-   - Look for **"Dockerfile Path"** field and set it to: `worker/Dockerfile`
-   - Or Railway might show it in the build settings
+6. **Important - Build Context Issue**: Railway might be building from the worker directory, which causes path issues. Try one of these:
+
+   **Option A: Set Root Directory to repo root**
+   - **Root Directory**: Leave empty or set to `/` (repo root)
+   - **Dockerfile Path**: Set to `worker/Dockerfile`
+   - This makes Railway build from repo root, so paths like `api/prisma` and `worker/src` work
+
+   **Option B: If Option A doesn't work, use Root Directory `/worker`**
+   - **Root Directory**: Set to `/worker`
+   - Railway will build from the worker directory
+   - The Dockerfile will need different paths (see troubleshooting below)
+
+7. If you get build errors about paths not found:
+   - Check the build logs to see what directory Railway is using as build context
+   - The error will show which paths it's looking for
+   - You may need to adjust the Dockerfile paths based on the actual build context
+
 8. Go to **"Variables"** tab
 9. **Check for DATABASE_URL**:
    - **If you see `DATABASE_URL`** already listed: Great! Railway automatically added it. Skip to step 9.

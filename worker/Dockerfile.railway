@@ -1,3 +1,5 @@
+# Railway-specific Dockerfile for worker
+# This assumes Railway builds from repo root
 FROM node:20-alpine
 
 WORKDIR /app
@@ -5,8 +7,7 @@ WORKDIR /app
 # install openssl and libc6-compat for prisma
 RUN apk add --no-cache openssl libc6-compat
 
-# Copy Prisma schema from api directory
-# This works when Railway builds from repo root (root directory should be empty or /)
+# Copy Prisma schema from api directory (build context is repo root)
 COPY api/prisma ./prisma/
 
 # Copy worker package.json and install dependencies
