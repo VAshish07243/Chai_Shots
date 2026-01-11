@@ -1,0 +1,22 @@
+{
+  "name": "cms-catalog",
+  "version": "1.0.0",
+  "description": "CMS for Programs → Terms → Lessons with public catalog API",
+  "scripts": {
+    "dev": "concurrently \"npm:dev:*\"",
+    "dev:api": "cd api && npm run dev",
+    "dev:web": "cd web && npm run dev",
+    "dev:worker": "cd worker && npm run dev",
+    "build": "npm run build --workspaces",
+    "docker:up": "docker compose up --build",
+    "docker:down": "docker compose down"
+  },
+  "workspaces": [
+    "api",
+    "web",
+    "worker"
+  ],
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

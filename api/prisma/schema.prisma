@@ -1,0 +1,165 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProgramStatus {
+  draft
+  published
+  archived
+}
+
+enum LessonStatus {
+  draft
+  scheduled
+  published
+  archived
+}
+
+enum ContentType {
+  video
+  article
+}
+
+enum AssetVariant {
+  portrait
+  landscape
+  square
+  banner
+}
+
+enum AssetType {
+  poster
+  thumbnail
+}
+
+enum UserRole {
+  admin
+  editor
+  viewer
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  role      UserRole @default(viewer)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Program {
+  id                 String        @id @default(uuid())
+  title              String
+  description        String?
+  languagePrimary    String
+  languagesAvailable String[]
+  status             ProgramStatus @default(draft)
+  publishedAt        DateTime?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  topics   ProgramTopic[]
+  terms    Term[]
+  assets   ProgramAsset[]
+
+  @@index([status, languagePrimary, publishedAt])
+}
+
+model Topic {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+
+  programs ProgramTopic[]
+}
+
+model ProgramTopic {
+  id        String   @id @default(uuid())
+  programId String
+  topicId   String
+  program   Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  topic     Topic    @relation(fields: [topicId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, topicId])
+  @@index([programId])
+  @@index([topicId])
+}
+
+model Term {
+  id         String   @id @default(uuid())
+  programId  String
+  termNumber Int
+  title      String?
+  createdAt  DateTime @default(now())
+
+  program  Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  lessons  Lesson[]
+
+  @@unique([programId, termNumber])
+  @@index([programId])
+}
+
+model Lesson {
+  id                      String       @id @default(uuid())
+  termId                  String
+  lessonNumber            Int
+  title                   String
+  contentType             ContentType
+  durationMs              Int?
+  isPaid                  Boolean      @default(false)
+  contentLanguagePrimary  String
+  contentLanguagesAvailable String[]
+  contentUrlsByLanguage   Json
+  subtitleLanguages       String[]
+  subtitleUrlsByLanguage  Json?
+  status                  LessonStatus @default(draft)
+  publishAt               DateTime?
+  publishedAt             DateTime?
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+
+  term   Term         @relation(fields: [termId], references: [id], onDelete: Cascade)
+  assets LessonAsset[]
+
+  @@unique([termId, lessonNumber])
+  @@index([termId, lessonNumber])
+  @@index([status, publishAt])
+}
+
+model ProgramAsset {
+  id        String      @id @default(uuid())
+  programId String
+  language  String
+  variant   AssetVariant
+  assetType AssetType   @default(poster)
+  url       String
+  createdAt DateTime    @default(now())
+
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([programId, language, variant, assetType])
+  @@index([programId, language])
+}
+
+model LessonAsset {
+  id        String      @id @default(uuid())
+  lessonId  String
+  language  String
+  variant   AssetVariant
+  assetType AssetType   @default(thumbnail)
+  url       String
+  createdAt DateTime    @default(now())
+
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([lessonId, language, variant, assetType])
+  @@index([lessonId, language])
+}
