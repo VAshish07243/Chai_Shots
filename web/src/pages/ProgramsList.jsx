@@ -76,8 +76,8 @@ function ProgramsList({ user, setUser }) {
 
   const handleLogout = () => {
     localStorage.removeItem('token');
-    setUser(null);
-    navigate('/login');
+    // Use window.location for logout to avoid React state issues
+    window.location.href = '/login';
   };
 
   if (loading) return <div className="container">Loading...</div>;
