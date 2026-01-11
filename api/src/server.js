@@ -37,6 +37,58 @@ app.get('/health', async (req, res) => {
   }
 });
 
+// one-time setup endpoint - creates default users if no users exist
+app.post('/api/setup', async (req, res) => {
+  try {
+    const userCount = await prisma.user.count();
+    if (userCount > 0) {
+      return res.status(400).json({ code: 'ALREADY_SETUP', message: 'Setup already completed. Users exist.' });
+    }
+
+    // create all three default users
+    const adminUser = await prisma.user.create({
+      data: {
+        email: 'admin@example.com',
+        password: bcrypt.hashSync('admin123', 10),
+        role: 'admin',
+      },
+    });
+
+    const editorUser = await prisma.user.create({
+      data: {
+        email: 'editor@example.com',
+        password: bcrypt.hashSync('editor123', 10),
+        role: 'editor',
+      },
+    });
+
+    const viewerUser = await prisma.user.create({
+      data: {
+        email: 'viewer@example.com',
+        password: bcrypt.hashSync('viewer123', 10),
+        role: 'viewer',
+      },
+    });
+
+    res.json({ 
+      success: true, 
+      message: 'Default users created successfully',
+      users: {
+        admin: { email: adminUser.email, role: adminUser.role },
+        editor: { email: editorUser.email, role: editorUser.role },
+        viewer: { email: viewerUser.email, role: viewerUser.role },
+      },
+      credentials: {
+        admin: 'admin@example.com / admin123',
+        editor: 'editor@example.com / editor123',
+        viewer: 'viewer@example.com / viewer123',
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ code: 'INTERNAL_ERROR', message: error.message });
+  }
+});
+
 // check if user is authenticated
 const authenticate = (req, res, next) => {
   const token = req.headers.authorization?.replace('Bearer ', '');
